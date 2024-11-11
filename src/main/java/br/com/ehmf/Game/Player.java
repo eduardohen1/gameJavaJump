@@ -11,8 +11,8 @@ public class Player {
     private Vector2 position;
     private Vector2 velocity;
     private Rectangle bounds;
-    private final float GRAVITY = -0.5f;
-    private final float JUMP_VELOCITY = 20f;
+    private final float GRAVITY = -0.3f;
+    private final float JUMP_VELOCITY = 15f;
 
     public Player() {
         texture = new Texture(Gdx.files.internal("player.png"));

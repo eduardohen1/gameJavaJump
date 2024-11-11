@@ -1,6 +1,7 @@
 package br.com.ehmf.Game;
 
 import com.badlogic.gdx.*;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -21,17 +22,26 @@ public class GameScreen extends ApplicationAdapter implements ApplicationListene
     private Array<Obstacle> obstacles;
     private long lastObstacleTime;
     private int score;
+    private int powers; //poder
+    private Array<Shot> shots; //tiros
+    private Texture explosionTexture;
     private BitmapFont font;
+    private Sound shotSound;
 
     @Override
     public void create() {
         batch = new SpriteBatch();
         background = new Texture(Gdx.files.internal("city_background.png"));
+        explosionTexture = new Texture(Gdx.files.internal("explosion.png")); //
+        shotSound = Gdx.audio.newSound(Gdx.files.internal("shot16bits.wav"));
         player = new Player();
         obstacles = new Array<>();
         spawnObstacle();
 
         score = 0;
+        powers = 0;
+        shots = new Array<>();
+
         font = new BitmapFont();
     }
 
@@ -52,7 +62,12 @@ public class GameScreen extends ApplicationAdapter implements ApplicationListene
             obstacle.draw(batch);
         }
 
+        for(Shot shot : shots) {
+            shot.draw(batch);
+        }
+
         font.draw(batch, "Score: " + score, 10, Gdx.graphics.getHeight() - 10);
+        font.draw(batch, "Powers: " + powers, 10, Gdx.graphics.getHeight() - 30);
 
         batch.end();
     }
@@ -61,6 +76,11 @@ public class GameScreen extends ApplicationAdapter implements ApplicationListene
         // Verifica se a tecla de espaço foi pressionada
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
             player.jump();
+        }
+
+        //usar o poder
+        if(Gdx.input.isKeyJustPressed(Input.Keys.ENTER) && powers > 0) {
+            userPower();
         }
 
         player.update();
@@ -80,14 +100,40 @@ public class GameScreen extends ApplicationAdapter implements ApplicationListene
                 break;
             }
 
-            if(obstacle.getPosition().x < -obstacle.getWidth())
+            if(obstacle.getPosition().x < -obstacle.getWidth()) {
                 score++;
+                if(score % 2 == 0)
+                    powers++;
+            }
+        }
+
+        //atualiza a posição de cada tiro e verifica colisões com os obstáculos
+        for(Shot shot : shots) {
+            shot.update();
+            for(Obstacle obstacle : obstacles) {
+                if(shot.getBounds().overlaps(obstacle.getBounds())) {
+                    batch.begin();
+                    batch.draw(explosionTexture, obstacle.getPosition().x, obstacle.getPosition().y);
+                    batch.end();
+                    shots.removeValue(shot, true);
+                    obstacles.removeValue(obstacle, true);
+                    break;
+                }
+            }
         }
 
         // Remover obstáculos fora da tela
         for (Iterator<Obstacle> iterator = obstacles.iterator(); iterator.hasNext(); ) {
             Obstacle obstacle = iterator.next();
             if (obstacle.getPosition().x < -obstacle.getWidth()) {
+                iterator.remove();
+            }
+        }
+
+        //remover tiros fora da tela
+        for(Iterator<Shot> iterator = shots.iterator(); iterator.hasNext(); ) {
+            Shot shot = iterator.next();
+            if(shot.getX() > Gdx.graphics.getWidth()) {
                 iterator.remove();
             }
         }
@@ -115,6 +161,10 @@ public class GameScreen extends ApplicationAdapter implements ApplicationListene
         for (Obstacle obstacle : obstacles) {
             obstacle.dispose();
         }
+        explosionTexture.dispose();
+        for(Shot shot : shots) {
+            shot.dispose();
+        }
     }
 
     @Override
@@ -130,5 +180,15 @@ public class GameScreen extends ApplicationAdapter implements ApplicationListene
     @Override
     public void resume() {
         super.resume();
+    }
+
+    private void userPower(){
+        if(powers > 0){
+            Shot shot = new Shot(player.getPosition().x + player.getBounds().width, player.getPosition().y + player.getBounds().height / 2);
+            shots.add(shot);
+            shotSound.play();
+            powers--;
+            Gdx.app.log("Game", "Power used! Powers left: " + powers);
+        }
     }
 }
